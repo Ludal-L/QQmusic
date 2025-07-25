@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QQ音乐播放器 - 蜕变</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    
+    <!-- 配置Tailwind自定义颜色和字体 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#31C27C', // QQ音乐绿色
+                        secondary: '#141922', // 深色背景
+                        dark: '#0F1319', // 更深色背景
+                        light: '#F5F5F7', // 浅色文本
+                        'gray-medium': '#86868B', // 中等灰色
+                        'gray-dark': '#2C2C2E', // 深灰色
+                    },
+                    fontFamily: {
+                        sans: ['PingFang SC', 'Helvetica Neue', 'Arial', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .text-shadow {
+                text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+            }
+            .lyrics-active {
+                color: theme('colors.primary');
+                transform: scale(1.05);
+            }
+            .album-rotate {
+                animation: rotate 20s linear infinite;
+            }
+            @keyframes rotate {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+            }
+            .progress-hover {
+                height: 4px;
+            }
+            .progress-normal {
+                height: 2px;
+            }
+        }
+    </style>
+</head>
+<body class="bg-secondary text-light min-h-screen flex flex-col">
+    <!-- 顶部导航 -->
+    <header class="bg-dark py-3 px-4 md:px-8 flex items-center justify-between shadow-md">
+        <div class="flex items-center space-x-2">
+            <i class="fa fa-music text-primary text-2xl"></i>
+            <h1 class="text-xl font-bold">QQ音乐</h1>
+        </div>
+        <div class="hidden md:flex items-center space-x-6">
+            <a href="#" class="hover:text-primary transition-colors">推荐</a>
+            <a href="#" class="hover:text-primary transition-colors">歌手</a>
+            <a href="#" class="hover:text-primary transition-colors">专辑</a>
+            <a href="#" class="hover:text-primary transition-colors">我的音乐</a>
+        </div>
+        <div class="flex items-center space-x-4">
+            <button class="hover:text-primary transition-colors">
+                <i class="fa fa-search text-lg"></i>
+            </button>
+            <button class="hover:text-primary transition-colors md:hidden">
+                <i class="fa fa-bars text-lg"></i>
+            </button>
+            <div class="hidden md:block h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center">
+                <span class="text-primary text-sm">我</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="flex-1 container mx-auto px-4 py-8 md:py-12 flex flex-col md:flex-row gap-8">
+        <!-- 左侧播放器区域 -->
+        <div class="w-full md:w-1/2 flex flex-col items-center">
+            <!-- 专辑封面 -->
+            <div class="relative mb-8 w-64 h-64 md:w-80 md:h-80">
+                <div class="absolute inset-0 rounded-full bg-gray-dark/50 flex items-center justify-center">
+                    <div class="w-16 h-16 rounded-full bg-dark"></div>
+                </div>
+                <!-- 替换为你的专辑封面 -->
+                <img src="https://1318328187.vod2.myqcloud.com/3dcdd3b3vodsh1318328187/a7f09a275145403692509177239/i3O0G5XW8UMA.png" alt="蜕变专辑封面" class="absolute inset-0 w-full h-full rounded-full object-cover album-rotate" id="albumCover">
+                <div class="absolute inset-0 rounded-full border-4 border-white/10"></div>
+            </div>
+            
+            <!-- 歌曲信息 -->
+            <div class="text-center mb-8 w-full">
+                <h2 class="text-[clamp(1.5rem,3vw,2rem)] font-bold mb-2 truncate">蜕变</h2>
+                <p class="text-gray-medium text-lg">作词/鲁闯 作曲/鲁闯  编曲/鲁闯  演唱/鲁闯</p>
+                <div class="flex items-center justify-center mt-4 space-x-4">
+                    <button class="text-gray-medium hover:text-primary transition-colors">
+                        <i class="fa fa-heart-o text-xl"></i>
+                    </button>
+                    <button class="text-gray-medium hover:text-primary transition-colors">
+                        <i class="fa fa-plus-square-o text-xl"></i>
+                    </button>
+                    <button class="text-gray-medium hover:text-primary transition-colors">
+                        <i class="fa fa-share-alt text-xl"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 进度条 -->
+            <div class="w-full max-w-md mb-6">
+                <div class="flex justify-between text-sm text-gray-medium mb-1">
+                    <span id="currentTime">00:00</span>
+                    <span id="totalTime">00:00</span>
+                </div>
+                <div class="relative h-2 bg-gray-dark rounded-full cursor-pointer group" id="progressBar">
+                    <div class="absolute left-0 top-0 h-full w-0 bg-primary rounded-full" id="progress"></div>
+                    <div class="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity" id="progressHandle"></div>
+                </div>
+            </div>
+            
+            <!-- 控制按钮 -->
+            <div class="flex items-center justify-center space-x-6 md:space-x-10 w-full max-w-md">
+                <button class="text-gray-medium hover:text-primary transition-colors">
+                    <i class="fa fa-random text-lg"></i>
+                </button>
+                <button class="text-gray-medium hover:text-primary transition-colors">
+                    <i class="fa fa-step-backward text-xl"></i>
+                </button>
+                <button class="w-14 h-14 md:w-16 md:h-16 rounded-full bg-primary flex items-center justify-center hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20" id="playPauseBtn">
+                    <i class="fa fa-play text-2xl md:text-3xl"></i>
+                </button>
+                <button class="text-gray-medium hover:text-primary transition-colors">
+                    <i class="fa fa-step-forward text-xl"></i>
+                </button>
+                <button class="text-gray-medium hover:text-primary transition-colors">
+                    <i class="fa fa-repeat text-lg"></i>
+                </button>
+            </div>
+            
+            <!-- 音量控制 -->
+            <div class="flex items-center justify-center space-x-3 mt-6 w-full max-w-md">
+                <button class="text-gray-medium hover:text-primary transition-colors" id="volumeBtn">
+                    <i class="fa fa-volume-up"></i>
+                </button>
+                <div class="relative h-1 bg-gray-dark rounded-full flex-1 max-w-xs">
+                    <div class="absolute left-0 top-0 h-full w-[70%] bg-gray-medium rounded-full" id="volumeProgress"></div>
+                </div>
+                <button class="text-gray-medium hover:text-primary transition-colors">
+                    <i class="fa fa-list"></i>
+                </button>
+            </div>
+        </div>
+        
+        <!-- 右侧歌词区域 -->
+        <div class="w-full md:w-1/2 bg-dark/50 rounded-xl p-6 md:p-8 shadow-lg">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-semibold">歌词</h3>
+                <div class="flex space-x-3">
+                    <button class="text-gray-medium hover:text-primary transition-colors p-2 rounded-full hover:bg-gray-dark/50">
+                        <i class="fa fa-font"></i>
+                    </button>
+                    <button class="text-gray-medium hover:text-primary transition-colors p-2 rounded-full hover:bg-gray-dark/50">
+                        <i class="fa fa-refresh"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 歌词容器 -->
+            <div class="h-[500px] overflow-hidden relative" id="lyricsContainer">
+                <div class="absolute top-1/2 left-0 right-0 -translate-y-1/2 transition-transform duration-300" id="lyricsWrapper">
+                    <!-- 歌词将通过JS动态填充 -->
+                </div>
+                
+                <!-- 歌词高亮线 -->
+                <div class="absolute top-1/2 left-0 right-0 h-px bg-primary/30 -translate-y-1/2"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 底部播放控制栏 (在移动设备上显示) -->
+    <div class="md:hidden bg-dark border-t border-gray-dark/50 py-3 px-4 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <img src="https://1318328187.vod2.myqcloud.com/3dcdd3b3vodsh1318328187/f839187e5145403692344545180/3x8qujoQPz0A.png" alt="蜕变专辑封面" class="w-12 h-12 rounded object-cover">
+            <div>
+                <h4 class="font-medium text-sm truncate">蜕变</h4>
+                <p class="text-gray-medium text-xs">鲁闯</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-4">
+            <button class="text-gray-medium hover:text-primary transition-colors">
+                <i class="fa fa-step-backward"></i>
+            </button>
+            <button class="w-10 h-10 rounded-full bg-primary flex items-center justify-center" id="mobilePlayPauseBtn">
+                <i class="fa fa-play ml-0.5"></i>
+            </button>
+            <button class="text-gray-medium hover:text-primary transition-colors">
+                <i class="fa fa-step-forward"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- 音频播放器 (默认隐藏) -->
+    <audio id="audioPlayer" src="https://1318328187.vod2.myqcloud.com/3dcdd3b3vodsh1318328187/6506fe655145403692515389226/oQavALnDavMA.mp3" preload="metadata">
+        你的浏览器不支持音频播放
+    </audio>
+
+    <script>
+        // 完整歌词和时间戳（秒）- 请根据实际歌曲调整时间
+        const lyrics = [
+            { time: 0, text: "蜕变" },
+            { time: 0, text: "" },
+            { time: 1, text: "作词：鲁闯" },
+            { time: 2, text: "作曲：鲁闯" },
+            { time: 3, text: "编曲：鲁闯" },
+            { time: 4, text: "演唱：鲁闯" },
+            { time: 4, text: "" },
+            { time: 5, text: "心跳在轰鸣" },
+            { time: 7, text: "像战鼓敲响的声音" },
+            { time: 9, text: "我握紧了哑铃" },
+            { time: 11, text: "听见钢铁的回音" },
+            { time: 15, text: "" },
+            { time: 16, text: "每一次推举" },
+            { time: 17, text: "都对抗着地心引力" },
+            { time: 22, text: "每一次的弯举" },
+            { time: 23, text: "都刻下我新的痕迹" },
+            { time: 26, text: "" },
+            { time: 27, text: "让汗水尽情地流淌" },
+            { time: 31, text: "让意志在胸口滚烫" },
+            { time: 34, text: "每一次力竭后的疯狂" },
+            { time: 38, text: "都重塑成我的模样" },
+            { time: 40, text: "" },
+            { time: 41, text: "让酸痛在血液里冲撞" },
+            { time: 44, text: "让呐喊把懦弱都埋葬" },
+            { time: 47, text: "每一次超越过的绝望" },
+            { time: 51, text: "都变成我耀眼的光" },
+            { time: 60, text: "" },
+            { time: 61, text: "呼吸变滚烫" },
+            { time: 62, text: "像熔岩在胸膛流淌" },
+            { time: 67, text: "我看见镜子里" },
+            { time: 69, text: "那个全新的自己" },
+            { time: 74, text: "" },
+            { time: 74, text: "我撕裂了极限" },
+            { time: 76, text: "用伤疤做我的纪念" },
+            { time: 80, text: "我打碎了从前" },
+            { time: 82, text: "让今天比昨天耀眼" },
+            { time: 85, text: "" },
+            { time: 86, text: "让汗水尽情地流淌" },
+            { time: 89, text: "让意志在胸口滚烫" },
+            { time: 93, text: "每一次力竭后的疯狂" },
+            { time: 96, text: "都重塑成我的模样" },
+            { time: 97, text: "" },
+            { time: 98, text: "让酸痛在血液里冲撞" },
+            { time: 102, text: "让呐喊把懦弱都埋葬" },
+            { time: 106, text: "每一次超越过的绝望" },
+            { time: 109, text: "都变成我耀眼的光" },
+            { time: 125, text: "" },
+            { time: 126, text: "这酸痛不是惩罚" },
+            { time: 128, text: "是成长的代价" },
+            { time: 129, text: "这钢铁不是冰冷" },
+            { time: 131, text: "是我意志的延伸" },
+            { time: 132, text: "当我战胜昨日的我" },
+            { time: 134, text: "我就是不灭的火" },
+            { time: 137, text: "" },
+            { time: 138, text: "我让汗水尽情地流淌" },
+            { time: 141, text: "我让意志在胸口滚烫" },
+            { time: 144, text: "每一次力竭后的疯狂" },
+            { time: 148, text: "我就是全新的模样" },
+            { time: 150, text: "" },
+            { time: 151, text: "我让酸痛在血液里冲撞" },
+            { time: 154, text: "我让呐喊把懦弱都埋葬" },
+            { time: 157, text: "每一次超越过的绝望" },
+            { time: 161, text: "我就是最耀眼的光" },
+            { time: 179, text: "" },
+            { time: 180, text: "感谢聆听" }
+        ];
+
+        // DOM元素
+        const lyricsWrapper = document.getElementById('lyricsWrapper');
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const mobilePlayPauseBtn = document.getElementById('mobilePlayPauseBtn');
+        const progressBar = document.getElementById('progressBar');
+        const progress = document.getElementById('progress');
+        const currentTimeEl = document.getElementById('currentTime');
+        const totalTimeEl = document.getElementById('totalTime');
+        const albumCover = document.getElementById('albumCover');
+        const audioPlayer = document.getElementById('audioPlayer');
+        const volumeBtn = document.getElementById('volumeBtn');
+        const volumeProgress = document.getElementById('volumeProgress');
+        
+        // 播放器状态
+        let isPlaying = false;
+        let currentTime = 0;
+        let totalTime = 0;
+        let activeLyricIndex = 0;
+        let animationFrameId;
+        let isMuted = false;
+        
+        // 初始化歌词
+        function initLyrics() {
+            lyrics.forEach((lyric, index) => {
+                const div = document.createElement('div');
+                div.className = `py-2 text-center transition-all duration-300 ${index === activeLyricIndex ? 'lyrics-active' : ''}`;
+                div.textContent = lyric.text;
+                div.dataset.index = index;
+                lyricsWrapper.appendChild(div);
+            });
+        }
+        
+        // 格式化时间（秒 -> mm:ss）
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+        
+        // 更新进度条
+        function updateProgress() {
+            if (isNaN(audioPlayer.duration)) return;
+            
+            currentTime = audioPlayer.currentTime;
+            const percentage = (currentTime / audioPlayer.duration) * 100;
+            progress.style.width = `${percentage}%`;
+            progressBar.querySelector('#progressHandle').style.left = `${percentage}%`;
+            currentTimeEl.textContent = formatTime(currentTime);
+        }
+        
+        // 更新歌词位置
+        function updateLyrics() {
+            if (lyrics.length === 0) return;
+            
+            // 找到当前应该显示的歌词
+            let newIndex = 0;
+            for (let i = 0; i < lyrics.length; i++) {
+                if (currentTime >= lyrics[i].time) {
+                    newIndex = i;
+                } else {
+                    break;
+                }
+            }
+            
+            if (newIndex !== activeLyricIndex) {
+                // 移除之前的高亮
+                const prevLyric = lyricsWrapper.querySelector(`[data-index="${activeLyricIndex}"]`);
+                if (prevLyric) prevLyric.classList.remove('lyrics-active');
+                
+                // 添加新的高亮
+                activeLyricIndex = newIndex;
+                const currentLyric = lyricsWrapper.querySelector(`[data-index="${activeLyricIndex}"]`);
+                if (currentLyric) currentLyric.classList.add('lyrics-active');
+                
+                // 滚动歌词
+                const lyricHeight = 40; // 每个歌词行的高度
+                const scrollPosition = -activeLyricIndex * lyricHeight;
+                lyricsWrapper.style.transform = `translateY(${scrollPosition}px)`;
+            }
+        }
+        
+        // 播放/暂停切换
+        function togglePlayPause() {
+            isPlaying = !isPlaying;
+            
+            if (isPlaying) {
+                // 更新按钮状态
+                playPauseBtn.innerHTML = '<i class="fa fa-pause text-2xl md:text-3xl ml-1"></i>';
+                mobilePlayPauseBtn.innerHTML = '<i class="fa fa-pause ml-0.5"></i>';
+                // 开始旋转动画
+                albumCover.classList.add('album-rotate');
+                // 播放音频
+                audioPlayer.play().catch(error => {
+                    console.error("播放失败:", error);
+                    // 处理自动播放限制
+                    alert("请点击播放按钮开始播放音乐");
+                    isPlaying = false;
+                    togglePlayPause();
+                });
+                // 开始更新进度
+                animatePlayback();
+            } else {
+                // 更新按钮状态
+                playPauseBtn.innerHTML = '<i class="fa fa-play text-2xl md:text-3xl"></i>';
+                mobilePlayPauseBtn.innerHTML = '<i class="fa fa-play ml-0.5"></i>';
+                // 停止旋转动画
+                albumCover.classList.remove('album-rotate');
+                // 暂停音频
+                audioPlayer.pause();
+                // 停止更新进度
+                cancelAnimationFrame(animationFrameId);
+            }
+        }
+        
+        // 播放动画 - 更新进度和歌词
+        function animatePlayback() {
+            if (!isPlaying) return;
+            
+            updateProgress();
+            updateLyrics();
+            
+            // 当音乐结束时重置
+            if (audioPlayer.ended) {
+                resetPlayer();
+                return;
+            }
+            
+            animationFrameId = requestAnimationFrame(animatePlayback);
+        }
+        
+        // 重置播放器
+        function resetPlayer() {
+            currentTime = 0;
+            audioPlayer.currentTime = 0;
+            isPlaying = false;
+            togglePlayPause();
+            updateProgress();
+            updateLyrics();
+        }
+        
+        // 点击进度条调整播放位置
+        function seek(e) {
+            const rect = progressBar.getBoundingClientRect();
+            const pos = (e.clientX - rect.left) / rect.width;
+            
+            // 更新音频位置
+            audioPlayer.currentTime = pos * audioPlayer.duration;
+            currentTime = audioPlayer.currentTime;
+            
+            updateProgress();
+            updateLyrics();
+        }
+        
+        // 切换音量/静音
+        function toggleVolume() {
+            isMuted = !isMuted;
+            audioPlayer.muted = isMuted;
+            
+            if (isMuted) {
+                volumeBtn.innerHTML = '<i class="fa fa-volume-off"></i>';
+                volumeProgress.style.width = '0%';
+            } else {
+                volumeBtn.innerHTML = '<i class="fa fa-volume-up"></i>';
+                volumeProgress.style.width = `${audioPlayer.volume * 100}%`;
+            }
+        }
+        
+        // 事件监听
+        playPauseBtn.addEventListener('click', togglePlayPause);
+        mobilePlayPauseBtn.addEventListener('click', togglePlayPause);
+        progressBar.addEventListener('click', seek);
+        volumeBtn.addEventListener('click', toggleVolume);
+        
+        // 音频元数据加载完成后获取总时长
+        audioPlayer.addEventListener('loadedmetadata', () => {
+            totalTime = audioPlayer.duration;
+            totalTimeEl.textContent = formatTime(totalTime);
+        });
+        
+        // 音频播放位置改变时更新进度
+        audioPlayer.addEventListener('timeupdate', () => {
+            if (isPlaying) {
+                updateProgress();
+                updateLyrics();
+            }
+        });
+        
+        // 初始化
+        function init() {
+            initLyrics();
+            updateProgress();
+            updateLyrics();
+        }
+        
+        // 页面加载完成后初始化
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
+    
